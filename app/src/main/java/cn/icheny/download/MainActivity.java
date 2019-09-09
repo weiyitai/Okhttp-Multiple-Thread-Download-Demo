@@ -53,12 +53,13 @@ public class MainActivity extends Activity {
             @Override
             public void onProgress(long progress, long total, int percent) {
                 pb_progress1.setProgress(percent);
-                tv_progress1.setText(percent + "");
+                tv_progress1.setText(percent + "%");
             }
 
             @Override
             public void onPause() {
                 Toast.makeText(MainActivity.this, "暂停了!", Toast.LENGTH_SHORT).show();
+                btn_download1.setEnabled(true);
             }
 
             @Override
@@ -90,6 +91,8 @@ public class MainActivity extends Activity {
             @Override
             public void onPause() {
                 Toast.makeText(MainActivity.this, "暂停了!", Toast.LENGTH_SHORT).show();
+//                btn_download2.setEnabled(true);
+
             }
 
             @Override
@@ -171,6 +174,7 @@ public class MainActivity extends Activity {
                 } else {
                     btn_download1.setText("下载");
                     mDownloadManager.pause(wechatUrl);
+//                    btn_download1.setEnabled(false);
                 }
                 break;
             case R.id.btn_download2:
@@ -180,6 +184,7 @@ public class MainActivity extends Activity {
                 } else {
                     btn_download2.setText("下载");
                     mDownloadManager.pause(qqUrl);
+                    btn_download2.setEnabled(false);
                 }
                 break;
             default:
@@ -234,7 +239,8 @@ public class MainActivity extends Activity {
         }
         String permission = Manifest.permission.WRITE_EXTERNAL_STORAGE;
 
-        if (!checkPermission(permission)) {//针对android6.0动态检测申请权限
+        if (!checkPermission(permission)) {
+            //针对android6.0动态检测申请权限
             if (shouldShowRationale(permission)) {
                 showMessage("需要权限跑demo哦...");
             }

@@ -76,11 +76,7 @@ public class DownloadTask1 extends Handler {
     /**
      * 下载回调监听
      */
-    private DownloadListener mListner;
-    /**
-     * 正在下载的线程数,用于判断是否正在下载
-     */
-    private volatile int mDownloadingThread = 0;
+    private DownloadListener mListener;
 
     /**
      * 任务管理器初始化数据
@@ -90,7 +86,7 @@ public class DownloadTask1 extends Handler {
      */
     DownloadTask1(FilePoint point, DownloadListener l) {
         this.mPoint = point;
-        this.mListner = l;
+        this.mListener = l;
         this.mProgress = new long[THREAD_COUNT];
         this.mCacheFiles = new File[THREAD_COUNT];
         this.mHttpUtil = HttpUtil.getInstance();
@@ -103,7 +99,7 @@ public class DownloadTask1 extends Handler {
      */
     @Override
     public void handleMessage(Message msg) {
-        if (null == mListner) {
+        if (null == mListener) {
             return;
         }
         switch (msg.what) {
@@ -115,20 +111,24 @@ public class DownloadTask1 extends Handler {
                 }
                 int nowPercent = (int) (progress * 100 / mFileLength);
                 if (nowPercent != mPrePercent) {
-                    mListner.onProgress(progress, mFileLength, nowPercent);
+                    mListener.onProgress(progress, mFileLength, nowPercent);
                     mPrePercent = nowPercent;
                     Log.d(TAG, "progress:" + progress + " nowPercent:" + nowPercent);
                 }
                 break;
             case MSG_PAUSE:
                 //暂停
+                Log.d(TAG, "confirmStatus MSG_PAUSE:" + childPauseCount.get());
                 if (confirmStatus(childPauseCount)) {
                     return;
                 }
+                Log.d(TAG, "MSG_PAUSE 暂停了");
                 resetStatus();
-                mListner.onPause();
+                mListener.onPause();
                 break;
             case MSG_FINISH:
+                // 下载完成,一个线程暂停
+                childPauseCount.incrementAndGet();
                 //完成
                 Log.d(TAG, "confirmStatus MSG_FINISH:" + childFinishCount.get());
                 if (confirmStatus(childFinishCount)) {
@@ -137,8 +137,12 @@ public class DownloadTask1 extends Handler {
                 Log.d(TAG, "MSG_FINISH 下载完毕");
                 //下载完毕后，重命名目标文件名
                 resetStatus();
-                cleanFile(mCacheFiles);
-                mListner.onFinished();
+                reSetProgress();
+                postDelayed(() -> {
+                    // 将删除文件延后 50ms ,因为写进度是在 finally 代码块里删的太早可能那里又会把文件写入
+                    cleanFile(mCacheFiles);
+                }, 50);
+                mListener.onFinished();
                 break;
             case MSG_CANCEL:
                 //取消
@@ -147,7 +151,7 @@ public class DownloadTask1 extends Handler {
                 }
                 resetStatus();
                 mProgress = new long[THREAD_COUNT];
-                mListner.onCancel();
+                mListener.onCancel();
                 break;
             default:
                 break;
@@ -164,6 +168,9 @@ public class DownloadTask1 extends Handler {
             if (isDownloading) {
                 return;
             }
+            childFinishCount.set(0);
+            childPauseCount.set(0);
+            childCanleCount.set(0);
             isDownloading = true;
             ThreadManager.runOnBackground(() -> {
                 try {
@@ -187,8 +194,8 @@ public class DownloadTask1 extends Handler {
                     splitThread();
                 } catch (IOException e) {
                     e.printStackTrace();
-                    if (mListner != null) {
-                        mListner.onFail();
+                    if (mListener != null) {
+                        mListener.onFail();
                     }
                 }
             });
@@ -202,7 +209,6 @@ public class DownloadTask1 extends Handler {
      * 分线程下载
      */
     private void splitThread() {
-        childFinishCount.set(0);
         /*将下载任务分配给每个线程*/
         long blockSize = mFileLength / THREAD_COUNT;
         // 计算每个线程理论上下载的数量.
@@ -248,6 +254,7 @@ public class DownloadTask1 extends Handler {
             final long finalStartIndex = newStartIndex;
             Log.d(TAG, "finalStartIndex:" + finalStartIndex + " endIndex:" + endIndex + " threadId:" + threadId);
             if (finalStartIndex >= endIndex) {
+                // 这个线程已经完成,不需要在 finally 代码块再写入进度
                 progress = finalStartIndex;
                 Log.d(TAG, threadId + " mProgress[threadId]:" + mProgress[threadId]);
                 sendEmptyMessage(MSG_FINISH);
@@ -259,7 +266,7 @@ public class DownloadTask1 extends Handler {
             if (response.code() != 206 || body == null) {
                 // 206：请求部分资源成功码
                 resetStatus();
-                mListner.onFail();
+                mListener.onFail();
                 return;
             }
             InputStream is = body.byteStream();
@@ -304,7 +311,6 @@ public class DownloadTask1 extends Handler {
                 }
             }
             Log.d(TAG, "pro:" + pro + " range:" + range + " threadId:" + threadId);
-            //关闭资源
             close(cacheAccessFile, tmpAccessFile, is, response.body());
             // 删除临时文件,不能在这里删除,假如两个线程,一个完成了,一个没有,这时候暂停,完成的线程把文件删除了
             // 等一下恢复下载又开两个线程,那个已经完成的线程又会重新开始下载
@@ -331,6 +337,7 @@ public class DownloadTask1 extends Handler {
                 Log.d(TAG, msg);
             } catch (IOException e) {
                 e.printStackTrace();
+                close(cacheAccessFile);
             }
         }
     }
@@ -383,16 +390,25 @@ public class DownloadTask1 extends Handler {
         isDownloading = false;
     }
 
+    public void reSetProgress() {
+        if (mProgress != null) {
+            for (int i = 0; i < mProgress.length; i++) {
+                mProgress[i] = 0;
+            }
+        }
+    }
+
     /**
      * 取消
      */
     public void cancel() {
         cancel = true;
         if (!isDownloading) {
-            if (mListner != null) {
+            if (mListener != null) {
                 cleanFile(mCacheFiles);
                 resetStatus();
-                mListner.onCancel();
+                reSetProgress();
+                mListener.onCancel();
             }
         }
         isDownloading = false;
