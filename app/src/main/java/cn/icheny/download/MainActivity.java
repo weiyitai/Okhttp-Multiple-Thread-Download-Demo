@@ -1,12 +1,10 @@
 package cn.icheny.download;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
@@ -18,7 +16,8 @@ import android.widget.Toast;
  *
  * @author Cheny
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
+
     private static final int PERMISSION_REQUEST_CODE = 001;
     TextView tv_file_name1, tv_progress1, tv_file_name2, tv_progress2;
     Button btn_download1, btn_download2, btn_download_all;
@@ -190,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
             if (shouldShowRationale(permission)) {
                 showMessage("需要权限跑demo哦...");
             }
-            ActivityCompat.requestPermissions(this, new String[]{permission}, PERMISSION_REQUEST_CODE);
+            requestPermissions(new String[]{permission}, PERMISSION_REQUEST_CODE);
         }
     }
 
@@ -216,7 +215,10 @@ public class MainActivity extends AppCompatActivity {
      * @return
      */
     protected boolean checkPermission(String permission) {
-        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
     }
 
     /**
@@ -226,6 +228,9 @@ public class MainActivity extends AppCompatActivity {
      * @return
      */
     protected boolean shouldShowRationale(String permission) {
-        return ActivityCompat.shouldShowRequestPermissionRationale(this, permission);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return shouldShowRequestPermissionRationale(permission);
+        }
+        return false;
     }
 }
