@@ -9,18 +9,33 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-
 /**
  * Http网络工具,基于OkHttp
  * Created by Cheny on 2017/04/29.
  */
 
 public class HttpUtil {
+
     private OkHttpClient mOkHttpClient;
     private static HttpUtil mInstance;
     private final static long CONNECT_TIMEOUT = 60;//超时时间，秒
     private final static long READ_TIMEOUT = 60;//读取时间，秒
     private final static long WRITE_TIMEOUT = 60;//写入时间，秒
+
+    /**
+     * @param url        下载链接
+     * @param startIndex 下载起始位置
+     * @param endIndex   结束为止
+     * @throws IOException
+     */
+    public Response downloadFileByRange(String url, long startIndex, long endIndex) throws IOException {
+        // 创建一个Request
+        // 设置分段下载的头信息。 Range:做分段数据请求,断点续传指示下载的区间。格式: Range bytes=0-1024或者bytes:0-1024
+        Request request = new Request.Builder().header("RANGE", "bytes=" + startIndex + "-" + endIndex)
+                .url(url)
+                .build();
+       return doSync(request);
+    }
 
     /**
      * @param url        下载链接
@@ -36,6 +51,18 @@ public class HttpUtil {
                 .url(url)
                 .build();
         doAsync(request, callback);
+    }
+
+    public long getContentLength(String url) throws IOException {
+        // 创建一个Request
+        Request request = new Request.Builder()
+                .url(url)
+                .build();
+        Response response = doSync(request);
+        if (response.body() != null) {
+            return response.body().contentLength();
+        }
+        return 0;
     }
 
     public void getContentLength(String url, Callback callback) throws IOException {
@@ -64,9 +91,10 @@ public class HttpUtil {
         //创建请求会话
         Call call = mOkHttpClient.newCall(request);
         //同步执行会话请求
+//        Response response = call.execute();
+//        response.body().contentLength();
         return call.execute();
     }
-
 
     /**
      * @return HttpUtil实例对象

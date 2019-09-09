@@ -5,9 +5,19 @@ package cn.icheny.download;
  */
 
 public class FilePoint {
-    private String fileName;//文件名
-    private String url;//下载地址
-    private String filePath;//下载目录
+
+    /**
+     * 文件名
+     */
+    private String fileName;
+    /**
+     * 下载地址
+     */
+    private String url;
+    /**
+     * 下载目录
+     */
+    private String filePath;
 
     public FilePoint(String url) {
         this.url = url;

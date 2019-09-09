@@ -2,8 +2,10 @@ package cn.icheny.download;
 
 import android.os.Environment;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,22 +17,21 @@ import java.util.Map;
 public class DownloadManager {
 
     private String DEFAULT_FILE_DIR;//默认下载目录
-    private Map<String, DownloadTask> mDownloadTasks;//文件下载任务索引，String为url,用来唯一区别并操作下载的文件
-    private static DownloadManager mInstance;
+    private Map<String, DownloadTask1> mDownloadTasks;//文件下载任务索引，String为url,用来唯一区别并操作下载的文件
     private static final String TAG = "DownloadManager";
+
     /**
      * 下载文件
      */
     public void download(String... urls) {
         //单任务开启下载或多任务开启下载
-        for (int i = 0, length = urls.length; i < length; i++) {
-            String url = urls[i];
-            if (mDownloadTasks.containsKey(url)) {
-                mDownloadTasks.get(url).start();
+        for (String url : urls) {
+            DownloadTask1 task1 = mDownloadTasks.get(url);
+            if (task1 != null) {
+                task1.start();
             }
         }
     }
-
 
     // 获取下载文件的名称
     public String getFileName(String url) {
@@ -42,10 +43,10 @@ public class DownloadManager {
      */
     public void pause(String... urls) {
         //单任务暂停或多任务暂停下载
-        for (int i = 0, length = urls.length; i < length; i++) {
-            String url = urls[i];
-            if (mDownloadTasks.containsKey(url)) {
-                mDownloadTasks.get(url).pause();
+        for (String url : urls) {
+            DownloadTask1 task1 = mDownloadTasks.get(url);
+            if (task1 != null) {
+                task1.pause();
             }
         }
     }
@@ -55,10 +56,10 @@ public class DownloadManager {
      */
     public void cancel(String... urls) {
         //单任务取消或多任务取消下载
-        for (int i = 0, length = urls.length; i < length; i++) {
-            String url = urls[i];
-            if (mDownloadTasks.containsKey(url)) {
-                mDownloadTasks.get(url).cancel();
+        for (String url : urls) {
+            DownloadTask1 task1 = mDownloadTasks.get(url);
+            if (task1 != null) {
+                task1.cancel();
             }
         }
     }
@@ -66,51 +67,57 @@ public class DownloadManager {
     /**
      * 添加下载任务
      */
-    public void add(String url, DownloadListner l) {
+    public void add(String url, DownloadListener l) {
         add(url, null, null, l);
     }
 
     /**
      * 添加下载任务
      */
-    public void add(String url, String filePath, DownloadListner l) {
+    public void add(String url, String filePath, DownloadListener l) {
         add(url, filePath, null, l);
     }
 
     /**
      * 添加下载任务
      */
-    public void add(String url, String filePath, String fileName, DownloadListner l) {
-        if (TextUtils.isEmpty(filePath)) {//没有指定下载目录,使用默认目录
+    public void add(String url, String filePath, String fileName, DownloadListener l) {
+        if (TextUtils.isEmpty(url)) {
+            return;
+        }
+        if (TextUtils.isEmpty(filePath)) {
+            //没有指定下载目录,使用默认目录
             filePath = getDefaultDirectory();
         }
         if (TextUtils.isEmpty(fileName)) {
             fileName = getFileName(url);
+            filePath += fileName;
         }
-        mDownloadTasks.put(url, new DownloadTask(new FilePoint(url, filePath, fileName), l));
+        mDownloadTasks.put(url, new DownloadTask1(new FilePoint(url, filePath, fileName), l));
     }
 
     /**
      * 默认下载目录
+     *
      * @return
      */
-    private String getDefaultDirectory() {
+    public String getDefaultDirectory() {
         if (TextUtils.isEmpty(DEFAULT_FILE_DIR)) {
             DEFAULT_FILE_DIR = Environment.getExternalStorageDirectory().getAbsolutePath()
-                    + File.separator + "icheny" + File.separator;
+                    + File.separator + Environment.DIRECTORY_DOWNLOADS + File.separator
+                    + "multi" + File.separator;
         }
         return DEFAULT_FILE_DIR;
     }
 
-    public static DownloadManager getInstance() {//管理器初始化
-        if (mInstance == null) {
-            synchronized (DownloadManager.class) {
-                if (mInstance == null) {
-                    mInstance = new DownloadManager();
-                }
-            }
-        }
-        return mInstance;
+    static class Instant {
+
+        static final DownloadManager MANAGER = new DownloadManager();
+
+    }
+
+    public static DownloadManager getInstance() {
+        return Instant.MANAGER;
     }
 
     public DownloadManager() {
@@ -124,12 +131,13 @@ public class DownloadManager {
         //这里传一个url就是判断一个下载任务
         //多个url数组适合下载管理器判断是否作操作全部下载或全部取消下载
         boolean result = false;
-        for (int i = 0, length = urls.length; i < length; i++) {
-            String url = urls[i];
-            if (mDownloadTasks.containsKey(url)) {
-                result = mDownloadTasks.get(url).isDownloading();
+        for (String url : urls) {
+            DownloadTask1 task1 = mDownloadTasks.get(url);
+            if (task1 != null) {
+                result = task1.isDownloading();
             }
         }
+        Log.d(TAG, "isDownloading:" + result + " " + Arrays.toString(urls));
         return result;
     }
 }

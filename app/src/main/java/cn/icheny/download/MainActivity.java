@@ -2,14 +2,19 @@ package cn.icheny.download;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import java.util.Locale;
 
 /**
  * Demo演示,临时写的Demo,难免有些bug
@@ -24,8 +29,10 @@ public class MainActivity extends Activity {
     ProgressBar pb_progress1, pb_progress2;
 
     DownloadManager mDownloadManager;
-    String wechatUrl = "http://dldir1.qq.com/weixin/android/weixin703android1400.apk";
-    String qqUrl = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
+    //    String wechatUrl = "http://dldir1.qq.com/weixin/android/weixin703android1400.apk";
+    String wechatUrl = "http://smbaup.sure56.com:8021/Update/UnitopSure.apk";
+//    String qqUrl = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
+    String qqUrl = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,16 +44,16 @@ public class MainActivity extends Activity {
 
     private void initDownloads() {
         mDownloadManager = DownloadManager.getInstance();
-        mDownloadManager.add(wechatUrl, new DownloadListner() {
+        mDownloadManager.add(wechatUrl, new DownloadListener() {
             @Override
             public void onFinished() {
                 Toast.makeText(MainActivity.this, "下载完成!", Toast.LENGTH_SHORT).show();
             }
 
             @Override
-            public void onProgress(float progress) {
-                pb_progress1.setProgress((int) (progress * 100));
-                tv_progress1.setText(String.format("%.2f", progress * 100) + "%");
+            public void onProgress(long progress, long total, int percent) {
+                pb_progress1.setProgress(percent);
+                tv_progress1.setText(percent + "");
             }
 
             @Override
@@ -61,18 +68,23 @@ public class MainActivity extends Activity {
                 btn_download1.setText("下载");
                 Toast.makeText(MainActivity.this, "下载已取消!", Toast.LENGTH_SHORT).show();
             }
+
+            @Override
+            public void onFail() {
+
+            }
         });
 
-        mDownloadManager.add(qqUrl, new DownloadListner() {
+        mDownloadManager.add(qqUrl, new DownloadListener() {
             @Override
             public void onFinished() {
                 Toast.makeText(MainActivity.this, "下载完成!", Toast.LENGTH_SHORT).show();
             }
 
             @Override
-            public void onProgress(float progress) {
-                pb_progress2.setProgress((int) (progress * 100));
-                tv_progress2.setText(String.format("%.2f", progress * 100) + "%");
+            public void onProgress(long progress, long total, int percent) {
+                pb_progress2.setProgress(percent);
+                tv_progress2.setText(percent + "");
             }
 
             @Override
@@ -86,6 +98,11 @@ public class MainActivity extends Activity {
                 pb_progress2.setProgress(0);
                 btn_download2.setText("下载");
                 Toast.makeText(MainActivity.this, "下载已取消!", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFail() {
+
             }
         });
     }
@@ -108,6 +125,36 @@ public class MainActivity extends Activity {
 
         btn_download_all = findViewById(R.id.btn_download_all);
 
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
+        int thread = sp.getInt("thread", 2);
+        DownloadTask1.THREAD_COUNT = thread;
+
+        TextView textView = findViewById(R.id.tv_thread);
+        textView.setText(String.format(Locale.getDefault(),
+                "线程数:%d 重启生效", thread));
+        SeekBar seekBar = findViewById(R.id.sb_thread);
+        seekBar.setProgress(thread);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress < 1) {
+                    progress = 1;
+                }
+                sp.edit().putInt("thread", progress).apply();
+                textView.setText(String.format(Locale.getDefault(),
+                        "线程数:%d 重启生效", progress));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
     }
 
     /**
@@ -121,7 +168,6 @@ public class MainActivity extends Activity {
                 if (!mDownloadManager.isDownloading(wechatUrl)) {
                     mDownloadManager.download(wechatUrl);
                     btn_download1.setText("暂停");
-
                 } else {
                     btn_download1.setText("下载");
                     mDownloadManager.pause(wechatUrl);
@@ -135,6 +181,8 @@ public class MainActivity extends Activity {
                     btn_download2.setText("下载");
                     mDownloadManager.pause(qqUrl);
                 }
+                break;
+            default:
                 break;
         }
     }
@@ -159,13 +207,14 @@ public class MainActivity extends Activity {
      * @param view
      */
     public void cancel(View view) {
-
         switch (view.getId()) {
             case R.id.btn_cancel1:
                 mDownloadManager.cancel(wechatUrl);
                 break;
             case R.id.btn_cancel2:
                 mDownloadManager.cancel(qqUrl);
+                break;
+            default:
                 break;
         }
     }
@@ -196,7 +245,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        cancelAll(null);
+        downloadOrPauseAll(null);
     }
 
     /**
