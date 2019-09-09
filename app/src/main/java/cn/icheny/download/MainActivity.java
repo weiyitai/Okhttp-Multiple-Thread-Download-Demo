@@ -31,7 +31,7 @@ public class MainActivity extends Activity {
     DownloadManager mDownloadManager;
     //    String wechatUrl = "http://dldir1.qq.com/weixin/android/weixin703android1400.apk";
     String wechatUrl = "http://smbaup.sure56.com:8021/Update/UnitopSure.apk";
-//    String qqUrl = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
+    //    String qqUrl = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
     String qqUrl = "";
 
     @Override
@@ -245,7 +245,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        downloadOrPauseAll(null);
+        mDownloadManager.pause(qqUrl, wechatUrl);
     }
 
     /**
