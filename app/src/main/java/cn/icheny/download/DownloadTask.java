@@ -6,6 +6,7 @@ import android.util.Log;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -240,23 +241,11 @@ public class DownloadTask extends Handler {
         }
         // 记录本次下载文件的位置
         long progress = startIndex;
-        RandomAccessFile cacheAccessFile = null;
-        // 分段请求网络连接,分段将文件保存到本地.
         // dSize 这个线程下载的大小  range 这个线程需要下载多少长度
         long dSize = 0, range = endIndex - startIndex;
-        final File cacheFile = new File(mPoint.getFilePath() + "thread" + threadId + ".cache");
+        File cacheFile = new File(mPoint.getFilePath() + "thread" + threadId + ".cache");
         try {
-            cacheAccessFile = new RandomAccessFile(cacheFile, "rwd");
-            long newStartIndex = startIndex;
-            mCacheFiles[threadId] = cacheFile;
-            // 如果文件存在
-            if (cacheFile.exists()) {
-                long l = parseLong(cacheAccessFile.readLine());
-                if (l != 0) {
-                    newStartIndex = l;
-                }
-            }
-            final long finalStartIndex = newStartIndex;
+            final long finalStartIndex = Math.max(startIndex, readProgress(cacheFile));
             if (DEBUG) {
                 Log.d(TAG, "finalStartIndex:" + finalStartIndex + " endIndex:"
                         + endIndex + " threadId:" + threadId + " from begin:" + (startIndex == finalStartIndex));
@@ -319,7 +308,7 @@ public class DownloadTask extends Handler {
             if (DEBUG) {
                 Log.d(TAG, "pro:" + dSize + " range:" + range + " threadId:" + threadId);
             }
-            close(cacheAccessFile, tmpAccessFile, is, response.body());
+            close(tmpAccessFile, is, response.body());
             // 删除临时文件,不能在这里删除,假如两个线程,一个完成了,一个没有,这时候暂停,完成的线程把文件删除了
             // 等一下恢复下载又开两个线程,那个已经完成的线程又会重新开始下载
 //            cleanFile(cacheFile);
@@ -330,22 +319,47 @@ public class DownloadTask extends Handler {
             sendEmptyMessage(MSG_FAIL);
             Log.e(TAG, Log.getStackTraceString(e));
         } finally {
-            writeProgress(threadId, progress, cacheAccessFile, dSize, range, cacheFile);
+            writeProgress(threadId, progress, dSize, range, cacheFile);
         }
+    }
+
+    /**
+     * 读取进度,读取之后就关掉,避免同时打开多个文件
+     *
+     * @param cacheFile
+     * @return
+     */
+    private long readProgress(File cacheFile) {
+        if (cacheFile == null || !cacheFile.exists()) {
+            return 0;
+        }
+        RandomAccessFile cacheAccessFile = null;
+        try {
+            cacheAccessFile = new RandomAccessFile(cacheFile, "rwd");
+            String s = cacheAccessFile.readLine();
+            if (s != null) {
+                return Long.parseLong(s);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            close(cacheAccessFile);
+        }
+        return 0;
     }
 
     /**
      * 在 finally 代码块保存进度性能更好
      *
-     * @param threadId        线程id
-     * @param progress        下载到的位置
-     * @param cacheAccessFile 保存进度的文件
-     * @param dSize           此线程已经下载的大小
-     * @param range           下载范围
-     * @param cacheFile       保存进度的文件
+     * @param threadId  线程id
+     * @param progress  下载到的位置
+     * @param dSize     此线程已经下载的大小
+     * @param range     下载范围
+     * @param cacheFile 保存进度的文件
      */
     private void writeProgress(int threadId, long progress,
-                               RandomAccessFile cacheAccessFile, long dSize, long range, File cacheFile) {
+                               long dSize, long range, File cacheFile) {
+        RandomAccessFile cacheAccessFile = null;
         try {
             String msg = "finally:";
             //将当前现在到的位置保存到文件中
@@ -367,18 +381,6 @@ public class DownloadTask extends Handler {
             Log.e(TAG, Log.getStackTraceString(e));
             close(cacheAccessFile);
         }
-    }
-
-    public long parseLong(String s) {
-        if (s == null) {
-            return 0;
-        }
-        try {
-            return Long.parseLong(s);
-        } catch (NumberFormatException e) {
-            e.printStackTrace();
-        }
-        return 0;
     }
 
     /**
