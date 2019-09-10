@@ -258,11 +258,12 @@ public class DownloadTask extends Handler {
             }
             final long finalStartIndex = newStartIndex;
             if (DEBUG) {
-                Log.d(TAG, "finalStartIndex:" + finalStartIndex + " endIndex:" + endIndex + " threadId:" + threadId);
+                Log.d(TAG, "finalStartIndex:" + finalStartIndex + " endIndex:"
+                        + endIndex + " threadId:" + threadId + " from begin:" + (startIndex == finalStartIndex));
             }
+            progress = finalStartIndex;
             if (finalStartIndex >= endIndex) {
                 // 这个线程已经完成,不需要在 finally 代码块再写入进度
-                progress = finalStartIndex;
                 sendEmptyMessage(MSG_FINISH);
                 return;
             }
@@ -354,9 +355,7 @@ public class DownloadTask extends Handler {
                 msg += "download complete write progress:" + progress
                         + " threadId:" + threadId;
             }
-            if (cacheAccessFile == null) {
-                cacheAccessFile = new RandomAccessFile(cacheFile, "rwd");
-            }
+            cacheAccessFile = new RandomAccessFile(cacheFile, "rwd");
             cacheAccessFile.seek(0);
             cacheAccessFile.write((progress + "").getBytes(StandardCharsets.UTF_8));
             cacheAccessFile.close();
@@ -365,6 +364,7 @@ public class DownloadTask extends Handler {
             }
         } catch (IOException e) {
             e.printStackTrace();
+            Log.e(TAG, Log.getStackTraceString(e));
             close(cacheAccessFile);
         }
     }

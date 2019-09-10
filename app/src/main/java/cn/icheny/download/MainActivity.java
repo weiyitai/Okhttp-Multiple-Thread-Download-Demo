@@ -179,7 +179,7 @@ public class MainActivity extends Activity {
                 } else {
                     btn_download1.setText("下载");
                     mDownloadManager.pause(wechatUrl);
-//                    btn_download1.setEnabled(false);
+                    btn_download1.setEnabled(false);
                 }
                 break;
             case R.id.btn_download2:
