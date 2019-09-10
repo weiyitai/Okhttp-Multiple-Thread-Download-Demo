@@ -16,9 +16,15 @@ import java.util.Map;
  */
 public class DownloadManager {
 
-    private String DEFAULT_FILE_DIR;//默认下载目录
-    private Map<String, DownloadTask1> mDownloadTasks;//文件下载任务索引，String为url,用来唯一区别并操作下载的文件
     private static final String TAG = "DownloadManager";
+    /**
+     * 默认下载目录
+     */
+    private String mDefaultFileDir;
+    /**
+     * 文件下载任务索引，String为url,用来唯一区别并操作下载的文件
+     */
+    private Map<String, DownloadTask> mDownloadTasks;
 
     /**
      * 下载文件
@@ -26,7 +32,7 @@ public class DownloadManager {
     public void download(String... urls) {
         //单任务开启下载或多任务开启下载
         for (String url : urls) {
-            DownloadTask1 task1 = mDownloadTasks.get(url);
+            DownloadTask task1 = mDownloadTasks.get(url);
             if (task1 != null) {
                 task1.start();
             }
@@ -44,7 +50,7 @@ public class DownloadManager {
     public void pause(String... urls) {
         //单任务暂停或多任务暂停下载
         for (String url : urls) {
-            DownloadTask1 task1 = mDownloadTasks.get(url);
+            DownloadTask task1 = mDownloadTasks.get(url);
             if (task1 != null) {
                 task1.pause();
             }
@@ -57,7 +63,7 @@ public class DownloadManager {
     public void cancel(String... urls) {
         //单任务取消或多任务取消下载
         for (String url : urls) {
-            DownloadTask1 task1 = mDownloadTasks.get(url);
+            DownloadTask task1 = mDownloadTasks.get(url);
             if (task1 != null) {
                 task1.cancel();
             }
@@ -93,7 +99,7 @@ public class DownloadManager {
             fileName = getFileName(url);
             filePath += fileName;
         }
-        mDownloadTasks.put(url, new DownloadTask1(new FilePoint(url, filePath, fileName), l));
+        mDownloadTasks.put(url, new DownloadTask(new FilePoint(url, filePath, fileName), l));
     }
 
     /**
@@ -102,12 +108,12 @@ public class DownloadManager {
      * @return
      */
     public String getDefaultDirectory() {
-        if (TextUtils.isEmpty(DEFAULT_FILE_DIR)) {
-            DEFAULT_FILE_DIR = Environment.getExternalStorageDirectory().getAbsolutePath()
+        if (TextUtils.isEmpty(mDefaultFileDir)) {
+            mDefaultFileDir = Environment.getExternalStorageDirectory().getAbsolutePath()
                     + File.separator + Environment.DIRECTORY_DOWNLOADS + File.separator
                     + "multi" + File.separator;
         }
-        return DEFAULT_FILE_DIR;
+        return mDefaultFileDir;
     }
 
     static class Instant {
@@ -132,7 +138,7 @@ public class DownloadManager {
         //多个url数组适合下载管理器判断是否作操作全部下载或全部取消下载
         boolean result = false;
         for (String url : urls) {
-            DownloadTask1 task1 = mDownloadTasks.get(url);
+            DownloadTask task1 = mDownloadTasks.get(url);
             if (task1 != null) {
                 result = task1.isDownloading();
             }

@@ -17,10 +17,15 @@ import okhttp3.Response;
 public class HttpUtil {
 
     private OkHttpClient mOkHttpClient;
-    private static HttpUtil mInstance;
-    private final static long CONNECT_TIMEOUT = 60;//超时时间，秒
-    private final static long READ_TIMEOUT = 60;//读取时间，秒
-    private final static long WRITE_TIMEOUT = 60;//写入时间，秒
+    private final static long CONNECT_TIMEOUT = 60;
+    /**
+     * 读取时间，秒
+     */
+    private final static long READ_TIMEOUT = 60;
+    /**
+     * 写入时间，秒
+     */
+    private final static long WRITE_TIMEOUT = 60;
 
     /**
      * @param url        下载链接
@@ -34,7 +39,7 @@ public class HttpUtil {
         Request request = new Request.Builder().header("RANGE", "bytes=" + startIndex + "-" + endIndex)
                 .url(url)
                 .build();
-       return doSync(request);
+        return doSync(request);
     }
 
     /**
@@ -91,23 +96,17 @@ public class HttpUtil {
         //创建请求会话
         Call call = mOkHttpClient.newCall(request);
         //同步执行会话请求
-//        Response response = call.execute();
-//        response.body().contentLength();
         return call.execute();
     }
 
-    /**
-     * @return HttpUtil实例对象
-     */
+    static class Instant {
+
+        static final HttpUtil MANAGER = new HttpUtil();
+
+    }
+
     public static HttpUtil getInstance() {
-        if (null == mInstance) {
-            synchronized (HttpUtil.class) {
-                if (null == mInstance) {
-                    mInstance = new HttpUtil();
-                }
-            }
-        }
-        return mInstance;
+        return Instant.MANAGER;
     }
 
     /**

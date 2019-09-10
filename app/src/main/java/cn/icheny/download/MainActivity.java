@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
@@ -31,8 +32,8 @@ public class MainActivity extends Activity {
     DownloadManager mDownloadManager;
     //    String wechatUrl = "http://dldir1.qq.com/weixin/android/weixin703android1400.apk";
     String wechatUrl = "http://smbaup.sure56.com:8021/Update/UnitopSure.apk";
-    //    String qqUrl = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
-    String qqUrl = "";
+    String qqUrl = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
+//    String qqUrl = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +54,7 @@ public class MainActivity extends Activity {
             @Override
             public void onProgress(long progress, long total, int percent) {
                 pb_progress1.setProgress(percent);
-                tv_progress1.setText(percent + "%");
+                tv_progress1.setText(getString(R.string.down_percent, percent));
             }
 
             @Override
@@ -72,7 +73,11 @@ public class MainActivity extends Activity {
 
             @Override
             public void onFail() {
-
+                tv_progress1.setText("0%");
+                pb_progress1.setProgress(0);
+                btn_download1.setText("下载");
+                Log.d("MainActivity", "onFail 下载失败了");
+                Toast.makeText(MainActivity.this, "下载失败了", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -85,13 +90,13 @@ public class MainActivity extends Activity {
             @Override
             public void onProgress(long progress, long total, int percent) {
                 pb_progress2.setProgress(percent);
-                tv_progress2.setText(percent + "");
+                tv_progress2.setText(percent + "%");
             }
 
             @Override
             public void onPause() {
                 Toast.makeText(MainActivity.this, "暂停了!", Toast.LENGTH_SHORT).show();
-//                btn_download2.setEnabled(true);
+                btn_download2.setEnabled(true);
 
             }
 
@@ -130,7 +135,7 @@ public class MainActivity extends Activity {
 
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
         int thread = sp.getInt("thread", 2);
-        DownloadTask1.THREAD_COUNT = thread;
+        DownloadTask.THREAD_COUNT = thread;
 
         TextView textView = findViewById(R.id.tv_thread);
         textView.setText(String.format(Locale.getDefault(),
