@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
             @Override
             public void onFinished() {
                 Toast.makeText(MainActivity.this, "下载完成!", Toast.LENGTH_SHORT).show();
+                btn_download1.setText("下载");
             }
 
             @Override

@@ -119,9 +119,7 @@ public class DownloadTask extends Handler {
                 if (nowPercent != mPrePercent) {
                     mListener.onProgress(progress, mFileLength, nowPercent);
                     mPrePercent = nowPercent;
-                    if (DEBUG) {
-                        Log.d(TAG, "progress:" + progress + " nowPercent:" + nowPercent);
-                    }
+                    log("progress:" + progress + " mFileLength:" + mFileLength + " nowPercent:" + nowPercent);
                 }
                 break;
             case MSG_PAUSE:
@@ -158,7 +156,7 @@ public class DownloadTask extends Handler {
                     return;
                 }
                 resetStatus();
-                mProgress = new long[THREAD_COUNT];
+                reSetProgress();
                 mListener.onCancel();
                 break;
             case MSG_FAIL:
@@ -178,7 +176,7 @@ public class DownloadTask extends Handler {
     public synchronized void start() {
         pause = false;
         cancel = false;
-        Log.d(TAG, "start isDownloading:" + isDownloading + " Url:" + mPoint.getUrl());
+        log("start isDownloading:" + isDownloading + " Url:" + mPoint.getUrl());
         if (isDownloading) {
             return;
         }
@@ -236,30 +234,27 @@ public class DownloadTask extends Handler {
     }
 
     private void download(long startIndex, final long endIndex, final int threadId) {
-        if (DEBUG) {
-            Log.d(TAG, "download:" + "startIndex:" + startIndex + " endIndex:" + endIndex + " threadId:" + threadId);
-        }
+        log("download:" + "startIndex:" + startIndex + " endIndex:" + endIndex + " threadId:" + threadId);
         // 记录本次下载文件的位置
         long progress = startIndex;
         // dSize 这个线程下载的大小  range 这个线程需要下载多少长度
         long dSize = 0, range = endIndex - startIndex;
         File cacheFile = new File(mPoint.getFilePath() + "thread" + threadId + ".cache");
+        mCacheFiles[threadId] = cacheFile;
         try {
             final long finalStartIndex = Math.max(startIndex, readProgress(cacheFile));
-            if (DEBUG) {
-                Log.d(TAG, "finalStartIndex:" + finalStartIndex + " endIndex:"
-                        + endIndex + " threadId:" + threadId + " from begin:" + (startIndex == finalStartIndex));
-            }
+            log("finalStartIndex:" + finalStartIndex + " endIndex:"
+                    + endIndex + " threadId:" + threadId + " from begin:" + (startIndex == finalStartIndex));
             progress = finalStartIndex;
+            dSize = progress - startIndex;
+            mProgress[threadId] = dSize;
             if (finalStartIndex >= endIndex) {
                 // 这个线程已经完成,不需要在 finally 代码块再写入进度
                 sendEmptyMessage(MSG_FINISH);
                 return;
             }
             Response response = mHttpUtil.downloadFileByRange(mPoint.getUrl(), finalStartIndex, endIndex);
-            if (DEBUG) {
-                Log.d(TAG, "threadId:" + threadId + " " + response);
-            }
+            log("threadId:" + threadId + " " + response);
             ResponseBody body = response.body();
             if (response.code() != 206 || body == null) {
                 // 206：请求部分资源成功码
@@ -273,11 +268,9 @@ public class DownloadTask extends Handler {
             tmpAccessFile.seek(finalStartIndex);
             byte[] buffer = new byte[1024 * 4];
             int length, total = 0;
-            long preProgress = 0;
-            if (DEBUG) {
-                Log.d(TAG, "准备开始写文件 threadId:" + threadId + " contentLength:"
-                        + body.contentLength() + " " + cancel + " " + pause);
-            }
+            long preProgress = (finalStartIndex - startIndex) * 100 / range;
+            log("准备开始写文件 threadId:" + threadId + " contentLength:"
+                    + body.contentLength() + " " + cancel + " " + pause);
             InputStream is = body.byteStream();
             while ((length = is.read(buffer)) != -1) {
                 if (cancel) {
@@ -305,9 +298,7 @@ public class DownloadTask extends Handler {
                     preProgress = nowProgress;
                 }
             }
-            if (DEBUG) {
-                Log.d(TAG, "pro:" + dSize + " range:" + range + " threadId:" + threadId);
-            }
+            log("pro:" + dSize + " range:" + range + " threadId:" + threadId);
             close(tmpAccessFile, is, response.body());
             // 删除临时文件,不能在这里删除,假如两个线程,一个完成了,一个没有,这时候暂停,完成的线程把文件删除了
             // 等一下恢复下载又开两个线程,那个已经完成的线程又会重新开始下载
@@ -320,6 +311,12 @@ public class DownloadTask extends Handler {
             Log.e(TAG, Log.getStackTraceString(e));
         } finally {
             writeProgress(threadId, progress, dSize, range, cacheFile);
+        }
+    }
+
+    private void log(String msg) {
+        if (DEBUG) {
+            Log.d(TAG, msg);
         }
     }
 
@@ -373,9 +370,7 @@ public class DownloadTask extends Handler {
             cacheAccessFile.seek(0);
             cacheAccessFile.write((progress + "").getBytes(StandardCharsets.UTF_8));
             cacheAccessFile.close();
-            if (DEBUG) {
-                Log.d(TAG, msg);
-            }
+            log(msg);
         } catch (IOException e) {
             e.printStackTrace();
             Log.e(TAG, Log.getStackTraceString(e));

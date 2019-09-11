@@ -143,7 +143,6 @@ public class DownloadManager {
                 result = task1.isDownloading();
             }
         }
-        Log.d(TAG, "isDownloading:" + result + " " + Arrays.toString(urls));
         return result;
     }
 }
